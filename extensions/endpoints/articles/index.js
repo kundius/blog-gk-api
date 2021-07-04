@@ -1,10 +1,58 @@
 const { sanitizeQuery } = require('directus/dist/utils/sanitize-query')
+const { v4: uuidv4 } = require('uuid')
 
 module.exports = function registerEndpoint(router, { services, exceptions, database }) {
 	const { ItemsService } = services
-	const { ServiceUnavailableException } = exceptions
+	const { ServiceUnavailableException, InvalidPayloadException } = exceptions
 
-	router.get('/related/:id', async (req, res, next) => {
+	router.get('/register-subscriber', async (req, res, next) => {
+    if (!req.query.email) {
+      next(new InvalidPayloadException('Не указан e-mail'))
+    }
+
+    try {
+      const subscriber = await database('subscribers')
+        .where('email', req.query.email)
+        .first()
+
+      if (subscriber) {
+        res.json({
+          success: false,
+          message: 'Этот e-mail уже подписан на рассылку'
+        })
+      }
+
+      await database('subscribers')
+        .insert({
+          id: uuidv4(),
+          email: req.query.email,
+          date_created: new Date()
+        })
+
+      res.json({
+        success: true,
+        message: 'Вы подписались на рассылку'
+      })
+    } catch (error) {
+      next(new ServiceUnavailableException(error.message))
+    }
+	})
+
+	router.get('/:id/register-hit', async (req, res, next) => {
+    try {
+      const [article] = await database('articles')
+        .where('id', req.params.id)
+        .update({
+          hits_count: database.raw('coalesce(hits_count, 0) + 1')
+        }, ['hits_count'])
+
+      res.json({ data: article.hits_count })
+    } catch (error) {
+      next(new ServiceUnavailableException(error.message))
+    }
+	})
+
+	router.get('/:id/related', async (req, res, next) => {
 		const articlesService = new ItemsService('articles', { schema: req.schema, accountability: req.accountability })
 
     const sanitizedQuery = sanitizeQuery(
@@ -48,6 +96,39 @@ module.exports = function registerEndpoint(router, { services, exceptions, datab
 
       res.json({
         data: relatedArticles
+      })
+    } catch (error) {
+      next(new ServiceUnavailableException(error.message))
+    }
+	})
+
+	router.get('/search', async (req, res, next) => {
+    const { search, limit = 10, page = 1 } = req.query
+
+    if (typeof search === 'undefined') {
+      next(new InvalidPayloadException('search not defined'))
+    }
+
+    const q = search.split(' ').join('&')
+
+    try {
+      const count = await database('articles')
+        .count()
+        .whereRaw('make_tsvector(articles.name, articles.content) @@ to_tsquery(?)', q)
+        .first()
+
+      const data = await database('articles')
+        .select('articles.id')
+        .whereRaw('make_tsvector(articles.name, articles.content) @@ to_tsquery(?)', q)
+        .orderByRaw('ts_rank(make_tsvector(articles.name, articles.content), to_tsquery(?), 1) DESC', q)
+        .limit(limit)
+        .offset((page - 1) * limit)
+
+      res.json({
+        data: data.map(item => item.id),
+        meta: {
+          search_count: count.count
+        }
       })
     } catch (error) {
       next(new ServiceUnavailableException(error.message))
