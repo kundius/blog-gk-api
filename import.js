@@ -105,7 +105,7 @@ async function main() {
   let created = 0
 
   for (const ticket of data.tickets.ticket) {
-    if (created === 100) break
+    // if (created === 10) break
 
     const alias = ticket.alias[0].split(',').join('').split('(').join('').split(')').join('')
     const [content, gallery] = await prepareContent(ticket.content[0])
