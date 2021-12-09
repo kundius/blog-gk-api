@@ -38,15 +38,29 @@ module.exports = function registerEndpoint(router, { services, exceptions, datab
     }
 	})
 
+	router.get('/:id/register-like', async (req, res, next) => {
+    try {
+      const [article] = await database('articles')
+        .where('id', req.params.id)
+        .update({
+          likes_count: database.raw('coalesce(likes_count, 0) + 1')
+        }, ['likes_count'])
+
+      res.json({ data: article.likes_count })
+    } catch (error) {
+      next(new ServiceUnavailableException(error.message))
+    }
+	})
+
 	router.get('/:id/register-hit', async (req, res, next) => {
     try {
       const [article] = await database('articles')
         .where('id', req.params.id)
         .update({
-          hits_count: database.raw('coalesce(hits_count, 0) + 1')
-        }, ['hits_count'])
+          likes_count: database.raw('coalesce(likes_count, 0) + 1')
+        }, ['likes_count'])
 
-      res.json({ data: article.hits_count })
+      res.json({ data: article.likes_count })
     } catch (error) {
       next(new ServiceUnavailableException(error.message))
     }
