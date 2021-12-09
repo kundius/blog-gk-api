@@ -38,7 +38,19 @@ module.exports = function registerEndpoint(router, { services, exceptions, datab
     }
 	})
 
-	router.get('/:id/like', async (req, res, next) => {
+	router.get('/:id/likes/count', async (req, res, next) => {
+    try {
+      const [article] = await database('articles')
+        .where('id', req.params.id)
+        .first()
+
+      res.json({ data: article.likes_count })
+    } catch (error) {
+      next(new ServiceUnavailableException(error.message))
+    }
+	})
+
+	router.get('/:id/likes/add', async (req, res, next) => {
     try {
       const [article] = await database('articles')
         .where('id', req.params.id)
@@ -52,7 +64,7 @@ module.exports = function registerEndpoint(router, { services, exceptions, datab
     }
 	})
 
-	router.get('/:id/dislike', async (req, res, next) => {
+	router.get('/:id/likes/remove', async (req, res, next) => {
     try {
       const [article] = await database('articles')
         .where('id', req.params.id)
