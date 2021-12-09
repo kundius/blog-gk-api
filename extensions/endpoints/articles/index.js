@@ -83,10 +83,10 @@ module.exports = function registerEndpoint(router, { services, exceptions, datab
       const [article] = await database('articles')
         .where('id', req.params.id)
         .update({
-          likes_count: database.raw('coalesce(likes_count, 0) + 1')
-        }, ['likes_count'])
+          hits_count: database.raw('coalesce(hits_count, 0) + 1')
+        }, ['hits_count'])
 
-      res.json({ data: article.likes_count })
+      res.json({ data: article.hits_count })
     } catch (error) {
       next(new ServiceUnavailableException(error.message))
     }
