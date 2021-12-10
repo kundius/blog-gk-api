@@ -40,7 +40,7 @@ module.exports = function registerEndpoint(router, { services, exceptions, datab
 
 	router.get('/:id/likes/count', async (req, res, next) => {
     try {
-      const [article] = await database('articles')
+      const article = await database('articles')
         .where('id', req.params.id)
         .first()
 
